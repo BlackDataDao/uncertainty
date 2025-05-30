@@ -44,8 +44,8 @@ os.environ["CURL_CA_BUNDLE"]     = certifi.where()
 hardcoded_api_key = "REMOVED"
 api_base_url = "https://api1.oaipro.com/v1"
 
-hardcoded_api_key="REMOVED"
-api_base_url = "https://api.deepseek.com"
+# hardcoded_api_key="REMOVED"
+# api_base_url = "https://api.deepseek.com"
 
 
 client = OpenAI(
@@ -67,7 +67,7 @@ ROLES = [
     "stock broker",
     "financial advisor",
     "risk manager",
-    # …add more roles here…
+    "person", # This is a generic role for the client
 ]
 SYSTEM_TEMPLATE = "You are a {role}."
 # Q1_TEMPLATE = (
@@ -86,7 +86,7 @@ Q1_TEMPLATE = (
     "- Age: {age}\n"
     "- Gender: {gender}\n"
     "- Net cash: ${net_cash:,.2f}\n\n"
-    "He/she wants to invest {pct}% of net cash into Google (GOOGL) stock.\n"
+    "He/she wants to invest {pct}% of net cash into {product} {product_type}.\n"
     "Please think step by step about whether he/she should do this. "
 )
 
@@ -1031,7 +1031,7 @@ def recommend():
             all_rows = list(reader)
         
         total_rows = len(all_rows)
-        print(f"🔍 Loaded {total_rows} rows from `{INPUT_CSV}` for main_4.")
+        print(f"🔍 Loaded {total_rows} rows from `{INPUT_CSV}` .")
 
         # Add recommendation fields to extra_fields
         extra_fields = [
@@ -1078,6 +1078,8 @@ def recommend():
                         gender=row.get("gender", ""),
                         net_cash=float(row.get("net_cash", 0)),
                         pct=row.get("percentage", ""),
+                        product=row.get("product_name", ""),
+                        product_type=row.get("product_type", ""),
                     )
 
                     common_reasoning = ""
@@ -1749,4 +1751,5 @@ def main_only_recommend_ds(input_file):
 # main_5()
 # main_5_ds()
 # main_only_recommend_ds("recommendations_main5_test.csv")  # Replace with your input file
-main_only_recommend_ds("r_recommendations_main5_20250525_120043.csv")  # Replace with your input file
+# main_only_recommend_ds("r_recommendations_main5_20250525_120043.csv")  # Replace with your input file
+recommend()
