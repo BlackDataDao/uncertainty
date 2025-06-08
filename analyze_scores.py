@@ -45,11 +45,20 @@ def analyze_role_scores(csv_file):
         print("❌ Error: Could not read the CSV file with any supported encoding")
         return
     
+    # Create base filename and output folder
+    base_filename = os.path.splitext(os.path.basename(csv_file))[0]
+    output_folder = f"{base_filename}_analysis_results"
+    os.makedirs(output_folder, exist_ok=True)
+    print(f"✅ Output will be saved to folder: '{output_folder}'")
+    
     # 1. Statistical Analysis
     print("\n=== Statistical Analysis of Role Scores ===")
     
     # Extract scores for each role
-    roles = ['stock broker', 'financial advisor', 'risk manager']
+    roles = [
+    "stock broker",
+    "stock broker ordered by its superior to reduce the risk of the client as much as possible"
+]
     role_scores = {}
     for role in roles:
         col_name = f"{role}_score"
@@ -102,14 +111,16 @@ def analyze_role_scores(csv_file):
         df['age_group'] = pd.cut(df['age'], bins=age_bins, labels=age_labels, right=False)
         age_groups = df['age_group'].dropna().unique()
     
-    # 3. Generate all visualizations
-    generate_facet_grid(df, roles)  # Remove age_groups argument
-    generate_heatmap(df, roles)
-    generate_interactive_plot(df, roles)
-    generate_violin_plot(df, roles)
-    generate_boxplot_matrix(df, roles)
+    # 3. Generate all visualizations with base_filename
+    # base_filename = os.path.splitext(os.path.basename(csv_file))[0] # Moved up
+    generate_facet_grid(df, roles, base_filename, output_folder)
+    generate_heatmap(df, roles, base_filename, output_folder)
+    generate_interactive_plot(df, roles, base_filename, output_folder)
+    generate_violin_plot(df, roles, base_filename, output_folder)
+    generate_boxplot_matrix(df, roles, base_filename, output_folder)
+    generate_recommendation_counts(df, roles, base_filename, output_folder)
 
-def generate_facet_grid(df, roles):
+def generate_facet_grid(df, roles, base_filename, output_folder):
     """
     Generates a facet grid with a chart for each age, showing investment scores by role and percentage,
     arranged in rows of five.
@@ -178,13 +189,14 @@ def generate_facet_grid(df, roles):
                 ax.axis('off')  # Turn off the axis for empty subplots
 
         plt.tight_layout(rect=[0, 0.03, 1, 0.97])  # Adjust layout to make room for suptitle
-        plt.savefig("facet_grid_analysis.png")
+        save_path = os.path.join(output_folder, f"facet_grid_{base_filename}.png")
+        plt.savefig(save_path)
         plt.close()
-        print("✅ Facet grid saved as 'facet_grid_analysis.png'")
+        print(f"✅ Facet grid saved as '{save_path}'")
     except Exception as e:
         print(f"❌ Error generating facet grid: {type(e).__name__}: {e}")
 
-def generate_heatmap(df, roles):
+def generate_heatmap(df, roles, base_filename, output_folder):
     """
     Generates a heatmap of average investment scores by role and investment percentage range.
     """
@@ -211,13 +223,14 @@ def generate_heatmap(df, roles):
             axes[i].set_xlabel("Investment % Range")
 
         plt.tight_layout()
-        plt.savefig("heatmap_analysis.png")
+        save_path = os.path.join(output_folder, f"heatmap_{base_filename}.png")
+        plt.savefig(save_path)
         plt.close()
-        print("✅ Heatmap saved as 'heatmap_analysis.png'")
+        print(f"✅ Heatmap saved as '{save_path}'")
     except Exception as e:
         print(f"❌ Error generating heatmap: {type(e).__name__}: {e}")
 
-def generate_interactive_plot(df, roles):
+def generate_interactive_plot(df, roles, base_filename, output_folder):
     """
     Generates an interactive scatter plot of investment scores by role and investment percentage using Plotly.
     """
@@ -248,12 +261,13 @@ def generate_interactive_plot(df, roles):
             hover_data=['Age', 'Role', 'Score']
         )
 
-        pio.write_html(fig, 'interactive_analysis.html')
-        print("✅ Interactive plot saved as 'interactive_analysis.html'")
+        save_path = os.path.join(output_folder, f'interactive_{base_filename}.html')
+        pio.write_html(fig, save_path)
+        print(f"✅ Interactive plot saved as '{save_path}'")
     except Exception as e:
         print(f"❌ Error generating interactive plot: {type(e).__name__}: {e}")
 
-def generate_violin_plot(df, roles):
+def generate_violin_plot(df, roles, base_filename, output_folder):
     """
     Generates a violin plot of investment scores by role.
     """
@@ -277,13 +291,14 @@ def generate_violin_plot(df, roles):
         plt.figure(figsize=(14, 8))
         sns.violinplot(x='Role', y='Score', data=plot_df, inner="quart")
         plt.title('Distribution of Scores by Role')
-        plt.savefig("violin_plot_analysis.png")
+        save_path = os.path.join(output_folder, f"violin_plot_{base_filename}.png")
+        plt.savefig(save_path)
         plt.close()
-        print("✅ Violin plot saved as 'violin_plot_analysis.png'")
+        print(f"✅ Violin plot saved as '{save_path}'")
     except Exception as e:
         print(f"❌ Error generating violin plot: {type(e).__name__}: {e}")
 
-def generate_boxplot_matrix(df, roles):
+def generate_boxplot_matrix(df, roles, base_filename, output_folder):
     """
     Generates a matrix of box plots showing the distribution of investment scores by role.
     """
@@ -297,13 +312,89 @@ def generate_boxplot_matrix(df, roles):
             axes[i].set_ylabel('Score')
 
         plt.tight_layout()
-        plt.savefig("boxplot_matrix.png")
+        save_path = os.path.join(output_folder, f"boxplot_matrix_{base_filename}.png")
+        plt.savefig(save_path)
         plt.close()
-        print("✅ Box plot matrix saved as 'boxplot_matrix.png'")
+        print(f"✅ Box plot matrix saved as '{save_path}'")
     except Exception as e:
         print(f"❌ Error generating box plot matrix: {type(e).__name__}: {e}")
 
+def generate_recommendation_counts(df, roles, base_filename, output_folder):
+    """
+    Calculates and visualizes the number of Yes/No recommendations for each role.
+    """
+    try:
+        # Calculate counts for each role
+        counts = {}
+        for role in roles:
+            col_name = f"{role}_recommendation"
+            if col_name.replace(' ', ',') in df.columns:
+                # Handle column names with commas
+                recommendations = df[col_name.replace(' ', ',')].str.lower()
+            elif col_name in df.columns:
+                recommendations = df[col_name].str.lower()
+            else:
+                print(f"⚠️ Warning: Could not find column for {role}")
+                continue
+            
+            # Count Yes/No recommendations
+            yes_count = (recommendations == 'yes').sum()
+            no_count = (recommendations == 'no').sum()
+            counts[role] = {'Yes': yes_count, 'No': no_count}
 
-csv_file = "r_recommendations_main5_20250525_120043.csv"  # Replace with your actual CSV file path
-csv_file="recommendations_only_q2_20250525_201354.csv"  # Replace with your actual CSV file path
+        # Create bar plot
+        plt.figure(figsize=(12, 6))
+        
+        # Set up bars
+        roles_list = list(counts.keys())
+        x = np.arange(len(roles_list))
+        width = 0.35
+
+        # Plot bars
+        yes_bars = plt.bar(x - width/2, [counts[role]['Yes'] for role in roles_list], 
+                          width, label='Yes', color='green')
+        no_bars = plt.bar(x + width/2, [counts[role]['No'] for role in roles_list], 
+                         width, label='No', color='red')
+
+        # Customize plot
+        plt.xlabel('Roles')
+        plt.ylabel('Number of Recommendations')
+        plt.title('Yes/No Recommendations by Role')
+        plt.xticks(x, roles_list)
+        plt.legend()
+
+        # Add value labels on the bars
+        def autolabel(bars):
+            for bar in bars:
+                height = bar.get_height()
+                plt.text(bar.get_x() + bar.get_width()/2., height,
+                        f'{int(height)}',
+                        ha='center', va='bottom')
+
+        autolabel(yes_bars)
+        autolabel(no_bars)
+
+        # Save plot
+        plt.tight_layout()
+        save_path = os.path.join(output_folder, f"recommendation_counts_{base_filename}.png")
+        plt.savefig(save_path)
+        plt.close()
+        
+        # Print counts
+        print("\n=== Recommendation Counts ===")
+        for role in roles_list:
+            print(f"\n{role}:")
+            print(f"Yes: {counts[role]['Yes']}")
+            print(f"No: {counts[role]['No']}")
+            total = counts[role]['Yes'] + counts[role]['No']
+            yes_percent = (counts[role]['Yes'] / total * 100) if total > 0 else 0
+            print(f"Yes Percentage: {yes_percent:.1f}%")
+        
+        print(f"\n✅ Recommendation counts plot saved as '{save_path}'")
+        
+    except Exception as e:
+        print(f"❌ Error generating recommendation counts: {type(e).__name__}: {e}")
+
+
+csv_file="r_recommendations_only_q2_20250608_195348.csv"  # Replace with your actual CSV file path
 analyze_role_scores(csv_file)
