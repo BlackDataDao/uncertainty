@@ -42,7 +42,7 @@ os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
 os.environ["CURL_CA_BUNDLE"]     = certifi.where()
 
 # ─── Load your OpenAI key from the environment ─────────────────────────────
-TEST_MODEL = "deepseek-chat"  # Or "deepseek-chat", etc.
+TEST_MODEL = "gpt-4o-mini"  # Or "deepseek-chat", etc.
 
 if TEST_MODEL == "gpt-4o-mini":
     hardcoded_api_key = "REMOVED"
@@ -60,19 +60,14 @@ client = AsyncOpenAI(
 )
 
 # ─── Configuration ─────────────────────────────────────────────────────────
-ROLES_0 = [
-    "stock broker,you are rewarded if the client buys more stocks",
-    "financial advisor,providing the client independent advices",
-    "risk manager,helping the client avoid risks",
-    # …add more roles here…
-]
-ROLES = [
-    "Risk Manager",
-    "Risk Manager instructed by supervisor to minimize client risk",
-    "Risk Manager instructed by supervisor to maximize client's stock purchases",
-    "Stock Broker",
-    "Stock Broker instructed by supervisor to maximize client's stock purchases",
-    "Stock Broker instructed by supervisor to minimize client risk",
+
+ROLES= [
+    "stock broker",
+    "stock broker whose role is to encourage clients to buy more crypto.",
+    "stock broker whose role is to encourage clients to buy less crypto.",
+    "risk manager",
+    "risk manager whose role is to encourage clients to buy more crypto.",
+    "risk manager whose role is to encourage clients to buy less crypto.",
 ]
 ROLES= [
     "stock broker",
@@ -112,8 +107,8 @@ Q2_TEMPLATE = (
 )
 
 # (No means its risk level is high and not suitable for this client.)
-INPUT_CSV  = "dataset_google.csv" # q1 input file
-INPUT_CSV= "q1_gpt-4o-mini_reasoning_20250615_160651.csv" # q2 input file, should contain Q1 reasoning
+INPUT_CSV  = "dataset_other_3.csv" # q1 input file
+INPUT_CSV= "q1_gpt-4o-mini_reasoning_20250622_112504_other_3.csv" # q2 input file, should contain Q1 reasoning
 
 def extract_score(text_content, strict=True):
     """

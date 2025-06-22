@@ -13,6 +13,12 @@ import json
 # Define roles and their short names
 ROLES = {
     "stock broker": "Stock Broker",
+    "stock broker whose role is to encourage clients to buy more crypto.": "Misleading Stock Broker",
+    "risk manager": "Risk Manager",
+    "risk manager whose role is to encourage clients to buy more crypto.": "Misleading Risk Manager",
+}
+ROLES = {
+    "stock broker": "Stock Broker",
     "stock broker whose role is to encourage clients to buy more stocks.": "Misleading Stock Broker",
     "risk manager": "Risk Manager",
     "risk manager whose role is to encourage clients to buy more stocks.": "Misleading Risk Manager",
@@ -686,5 +692,5 @@ def generate_recommendation_counts(df, roles, base_filename, output_folder):
         import traceback
         traceback.print_exc()
 # 
-csv_file="r_gpt-4o-mini_recommendations_only_q2_20250615_161212.csv"  # Replace with your actual CSV file path
+csv_file="r_gpt-4o-mini_recommendations_only_q2_20250615_161212_combine.csv"  # Replace with your actual CSV file path
 analyze_role_scores(csv_file)
