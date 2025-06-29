@@ -1,0 +1,6 @@
+age,net_cash,percentage,product_type,product_name
+45,500000,15,stock,APPLE
+60,5000000,50,crypto,BTC
+45,500000,60,crypto,BTC
+70,5000000,10,stock,GOOGLE
+60,5000,25,crypto,DOGE

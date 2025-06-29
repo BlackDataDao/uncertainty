@@ -1,7 +1,7 @@
 import pandas as pd
 import random
 
-DATA_SET_FILE = "dataset.csv"
+DATA_SET_FILE = "SIDD.csv"
 
 def filter_data_by_input():
     """
@@ -28,7 +28,7 @@ def filter_data_by_input():
 
     return filtered_df
 
-def filter_random_data_by_product_type(n, product_types):
+def filter_random_data_by_product_type(n, product_types,output_folder):
     """
     Filters the dataset based on specific product types and selects n random rows.
     
@@ -45,8 +45,8 @@ def filter_random_data_by_product_type(n, product_types):
     # 2) Build a mask for filtering by product types
     mask = (
         df["product_type"].isin(product_types)&
-        df["age"].between(20, 75) &  # Example age filter
-        df["percentage"].between(10, 70)   # Example percentage filter
+        df["age"].between(20, 70) &  # Example age filter
+        df["percentage"].between(0, 100)   # Example percentage filter
     )
     # 3) Apply the mask to filter the dataset
     filtered_df = df[mask]
@@ -60,14 +60,15 @@ def filter_random_data_by_product_type(n, product_types):
 
     # 5) Generate the output file name dynamically based on product types
     product_types_str = "_".join(product_types)
-    output_file = f"random_filtered_{n}_rows_{product_types_str}.csv"
+    timestamp = pd.Timestamp.now().strftime("%m%d%H%M")
+    output_file = output_folder+f"data_random_{n}_{product_types_str}_{timestamp}.csv"
 
     # 6) Save the filtered random rows to the output file
     random_rows.to_csv(output_file, index=False)
 
     print(f"{len(random_rows)} random rows saved to '{output_file}'.")
-    return random_rows
+    return output_file
 
 # Example usage
-filter_random_data_by_product_type(200, ["stock"])
+# filter_random_data_by_product_type(200, ["crypto", "stock"], "groups/group3/")  # Adjust the number of rows and product types as needed
 

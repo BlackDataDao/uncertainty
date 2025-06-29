@@ -2,13 +2,14 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
-from scipy.stats import chi2_contingency
+from scipy.stats import chi2_contingency, ttest_rel
 import numpy as np
 import os
 import plotly.express as px
 import plotly.io as pio
 import plotly.graph_objects as go
 import json
+from statsmodels.stats.contingency_tables import mcnemar
 
 # Define roles and their short names
 ROLES = {
@@ -73,7 +74,7 @@ def generate_statistics_excel(df, roles, output_folder, base_filename):
             short_role = ROLES.get(role, role)  # Get short name or use full name if not found
             statistics_data.append({"Role": short_role, "Mean Score": mean})
 
-        # Pairwise t-tests for role scores
+        # independent t-tests for role scores
         for i in range(len(roles)):
             if roles[i] not in role_scores:
                 continue
@@ -96,7 +97,38 @@ def generate_statistics_excel(df, roles, output_folder, base_filename):
                     "Significant (T-test)": "Yes" if p_value < alpha else "No"
                 })
 
-        # Pairwise chi-square test for recommendation counts
+        # paired t-tests for role scores
+        for i in range(len(roles)):
+            if roles[i] not in role_scores:
+                continue
+            for j in range(i + 1, len(roles)):
+                if roles[j] not in role_scores:
+                    continue
+                role1, role2 = roles[i], roles[j]
+                short_role1 = ROLES.get(role1, role1)
+                short_role2 = ROLES.get(role2, role2)
+                # 对齐索引，去除缺失值
+                s1 = role_scores[role1]
+                s2 = role_scores[role2]
+                paired = pd.concat([s1, s2], axis=1).dropna()
+                if paired.shape[0] == 0:
+                    continue
+                t_stat, p_value = ttest_rel(paired.iloc[:, 0], paired.iloc[:, 1])
+                mean_diff = paired.iloc[:, 0].mean() - paired.iloc[:, 1].mean()
+                statistics_data.append({
+                    "Role Pair": f"{short_role1} vs {short_role2}",
+                    "Mean Difference": mean_diff,
+                    "P-value (Paired T-test)": p_value,
+                    "Significant (Paired T-test)": "Yes" if p_value < alpha else "No"
+                })
+        print("\n=== Independent T-Tests and Paired T-Tests Results ===")
+        for entry in statistics_data:
+            if "Role Pair" in entry:
+                print(f"{entry['Role Pair']}: Mean Difference = {entry['Mean Difference']:.3f}, "
+                      f"P-value = {entry.get('P-value (T-test)', entry.get('P-value (Paired T-test)', 'N/A')):.3f}, "
+                      f"Significant = {entry.get('Significant (T-test)', entry.get('Significant (Paired T-test)', 'N/A'))}")
+
+        #  chi-square test for recommendation counts
         for i in range(len(roles)):
             for j in range(i + 1, len(roles)):
                 role1, role2 = roles[i], roles[j]
@@ -124,6 +156,12 @@ def generate_statistics_excel(df, roles, output_folder, base_filename):
                         "P-value (Chi-square)": p,
                         "Significant (Chi-square)": "Yes" if p < alpha else "No"
                     })
+        print("\n=== Chi-Square Test Results ===")
+        for entry in chi_square_data:
+            if "Role Pair" in entry:
+                print(f"{entry['Role Pair']}: Yes Count Difference = {entry['Yes Count Difference']}, "
+                      f"P-value = {entry['P-value (Chi-square)']:.3f}, "
+                      f"Significant = {entry['Significant (Chi-square)']}")
 
         # Create Excel file
         excel_file_path = os.path.join(output_folder, f"{base_filename}_statistics.xlsx")
@@ -168,7 +206,88 @@ def test_recommendation_count_significance(df, roles):
     except Exception as e:
         print(f"❌ Error during Chi-Square test: {type(e).__name__}: {e}")
 
-def analyze_role_scores(csv_file):
+def test_recommendation_count_significance_mcnemar(df, roles):
+    """
+    使用McNemar检验对配对的Yes/No推荐数据进行显著性检验。
+    """
+    try:
+        print("\n=== McNemar's Test for Paired Yes/No Recommendations ===")
+        alpha = 0.05
+        for i in range(len(roles)):
+            for j in range(i + 1, len(roles)):
+                role1, role2 = roles[i], roles[j]
+                col1 = f"{role1}_recommendation"
+                col2 = f"{role2}_recommendation"
+                if col1 not in df.columns or col2 not in df.columns:
+                    continue
+
+                # 只保留两列都不缺失的数据
+                paired = df[[col1, col2]].dropna()
+                paired = paired.apply(lambda x: x.str.lower())
+
+                # 构建2x2列联表
+                #            role2_yes   role2_no
+                # role1_yes   [a]         [b]
+                # role1_no    [c]         [d]
+                a = ((paired[col1] == 'yes') & (paired[col2] == 'yes')).sum()
+                b = ((paired[col1] == 'yes') & (paired[col2] == 'no')).sum()
+                c = ((paired[col1] == 'no') & (paired[col2] == 'yes')).sum()
+                d = ((paired[col1] == 'no') & (paired[col2] == 'no')).sum()
+                table = [[a, b], [c, d]]
+
+                result = mcnemar(table, exact=True)
+                short_role1 = ROLES.get(role1, role1)
+                short_role2 = ROLES.get(role2, role2)
+                print(f"\n{short_role1} vs {short_role2}:")
+                print(f"Contingency Table: {table}")
+                print(f"McNemar's test p-value: {result.pvalue:.4f}")
+                print("Significant difference:" , "Yes" if result.pvalue < alpha else "No")
+    except Exception as e:
+        print(f"❌ Error during McNemar's test: {type(e).__name__}: {e}")
+
+def save_mcnemar_results_to_excel(df, roles, output_folder, base_filename):
+    """
+    对每一对角色进行McNemar检验，并将结果保存到Excel文件中。
+    """
+    try:
+        mcnemar_data = []
+        alpha = 0.05
+        for i in range(len(roles)):
+            for j in range(i + 1, len(roles)):
+                role1, role2 = roles[i], roles[j]
+                col1 = f"{role1}_recommendation"
+                col2 = f"{role2}_recommendation"
+                if col1 not in df.columns or col2 not in df.columns:
+                    continue
+
+                paired = df[[col1, col2]].dropna()
+                paired = paired.apply(lambda x: x.str.lower())
+
+                a = ((paired[col1] == 'yes') & (paired[col2] == 'yes')).sum()
+                b = ((paired[col1] == 'yes') & (paired[col2] == 'no')).sum()
+                c = ((paired[col1] == 'no') & (paired[col2] == 'yes')).sum()
+                d = ((paired[col1] == 'no') & (paired[col2] == 'no')).sum()
+                table = [[a, b], [c, d]]
+
+                result = mcnemar(table, exact=True)
+                short_role1 = ROLES.get(role1, role1)
+                short_role2 = ROLES.get(role2, role2)
+                mcnemar_data.append({
+                    "Role Pair": f"{short_role1} vs {short_role2}",
+                    "b (yes→no)": b,
+                    "c (no→yes)": c,
+                    "McNemar p-value": result.pvalue,
+                    "Significant (alpha=0.05)": "Yes" if result.pvalue < alpha else "No"
+                })
+
+        # 保存到Excel
+        excel_file_path = os.path.join(output_folder, f"{base_filename}_mcnemar_results.xlsx")
+        pd.DataFrame(mcnemar_data).to_excel(excel_file_path, index=False)
+        print(f"✅ McNemar test results saved as '{excel_file_path}'")
+    except Exception as e:
+        print(f"❌ Error saving McNemar test results: {type(e).__name__}: {e}")
+
+def analyze_role_scores(csv_file,roles=ROLES,output_folder_path=None):
     """
     Analyze role scores from the recommendations CSV file.
     
@@ -189,7 +308,7 @@ def analyze_role_scores(csv_file):
     
     # Create base filename and output folder
     base_filename = os.path.splitext(os.path.basename(csv_file))[0]
-    output_folder = f"{base_filename}_analysis_results"
+    output_folder =output_folder_path+ f"analyze_{base_filename}"
     os.makedirs(output_folder, exist_ok=True)
     print(f"✅ Output will be saved to folder: '{output_folder}'")
     
@@ -217,32 +336,12 @@ def analyze_role_scores(csv_file):
         short_role = ROLES.get(role, role)
         print(f"{short_role}: {mean:.3f}")
     
-    # Pairwise t-tests
-    print("\nPairwise T-Tests:")
-    for i in range(len(roles)):
-        if roles[i] not in role_scores:
-            continue
-        for j in range(i+1, len(roles)):
-            if roles[j] not in role_scores:
-                continue
-            role1, role2 = roles[i], roles[j]
-            short_role1 = ROLES.get(role1, role1)
-            short_role2 = ROLES.get(role2, role2)
-            t_stat, p_value = stats.ttest_ind(
-                role_scores[role1].dropna(),
-                role_scores[role2].dropna(),
-                nan_policy='omit'
-            )
-            print(f"\n{short_role1} vs {short_role2}:")
-            print(f"t-statistic: {t_stat:.3f}")
-            print(f"p-value: {p_value:.3f}")
-            print(f"Significant difference: {'Yes' if p_value < 0.05 else 'No'}")
-            print(f"Mean difference: {mean_scores[role1] - mean_scores[role2]:.3f}")
     
-    # 2. Generate Excel file with statistics
+    
+    # Generate Excel file with statistics
     generate_statistics_excel(df, roles, output_folder, base_filename)
     
-    # 3. Visualization - Group by Age and Role
+    # 2. Visualization - Group by Age and Role
     
     # Check if 'age' column exists
     if 'age' not in df.columns:
@@ -255,19 +354,19 @@ def analyze_role_scores(csv_file):
         # age_labels = ['20-30', '31-40', '41-50', '51-60', '61+']
         # df['age_group'] = pd.cut(df['age'], bins=age_bins, labels=age_labels, right=False)
         # age_groups = df['age_group'].dropna().unique()
-    
-    # 4. Generate all visualizations with base_filename
-    generate_facet_grid_by_age(df, roles, base_filename, output_folder) # Renamed
-    generate_facet_grid_by_percentage(df, roles, base_filename, output_folder) # New
+
+    generate_facet_grid_by_age(df, roles, base_filename, output_folder)
+    generate_facet_grid_by_percentage(df, roles, base_filename, output_folder)
     generate_heatmap(df, roles, base_filename, output_folder)
     generate_interactive_plot(df, roles, base_filename, output_folder)
     generate_violin_plot(df, roles, base_filename, output_folder)
     generate_boxplot_matrix(df, roles, base_filename, output_folder)
     generate_recommendation_counts(df, roles, base_filename, output_folder)
     
-    # 5. Test Significance of Recommendation Counts
-    test_recommendation_count_significance(df, roles)
     
+    # 3. McNemar's test and save results to Excel
+    save_mcnemar_results_to_excel(df, roles, output_folder, base_filename)
+
     # Save role short name mapping to JSON
     roles_mapping_path = os.path.join(output_folder, "roles_mapping.json")
     with open(roles_mapping_path, 'w') as f:
@@ -564,14 +663,24 @@ def generate_violin_plot(df, roles, base_filename, output_folder):
         plot_df = pd.DataFrame(plot_data)
 
         # Create violin plot using Plotly
-        fig = px.violin(plot_df, y="Score", color="Role", box=True, points="all",
-                  hover_data=['Age', 'Role', 'Score'],
-                  category_orders={"Role": [ROLES.get(role, role) for role in roles]}  # Order roles by short name
+        fig = px.violin(
+            plot_df, y="Score", color="Role", box=True, points="all",
+            hover_data=['Age', 'Role', 'Score'],
+            category_orders={"Role": [ROLES.get(role, role) for role in roles]}
         )
 
-        fig.update_layout(title='Distribution of Scores by Role',
-                          yaxis_title='Score',
-                          legend_title="Role")
+        fig.update_layout(
+            title='Distribution of Scores by Role',
+            yaxis_title='Score',
+            legend_title="Role",
+            legend=dict(
+                orientation="h",           # 横向
+                yanchor="bottom",
+                y=-0.05,                   # 图例在图下方
+                xanchor="center",
+                x=0.5
+            )
+        )
 
         save_path = os.path.join(output_folder, f"violin_plot_{base_filename}.html")
         pio.write_html(fig, save_path)
@@ -691,6 +800,6 @@ def generate_recommendation_counts(df, roles, base_filename, output_folder):
         print(f"❌ Error generating recommendation counts: {type(e).__name__}: {e}")
         import traceback
         traceback.print_exc()
-# 
-csv_file="r_gpt-4o-mini_recommendations_only_q2_20250615_161212_combine.csv"  # Replace with your actual CSV file path
-analyze_role_scores(csv_file)
+# # 
+# csv_file="r_gpt-4o-mini_recommendations_only_q2_20250615_161212_combine.csv"  # Replace with your actual CSV file path
+# analyze_role_scores(csv_file="result/r_gpt-4o-mini_recommendations_only_q2_20250615_161212.csv", roles=ROLES, output_folder_path="result/")  # Replace with your actual CSV file path and output folder

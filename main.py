@@ -9,32 +9,8 @@ from datetime import datetime # Added import
 import json # Added import for dumping messages
 import re # Added import for regular expressions
 import asyncio # NEW
-
-def filter_data():
-    """
-    Filters the dataset based on specific criteria and saves the result to a new CSV file.
-    """
-
-    # 1) Load the full dataset
-    df = pd.read_csv("generated_profiles.csv")
-
-    # 2) Build a mask of your filtering conditions
-    mask = (
-        df["age"].between(20, 70) &
-        (df["product_type"] == "stock") &
-        (df["product_name"] == "google") &
-        df["percentage"].between(1, 100) &
-        (df["gender"] == "male") &
-        (df["net_cash"].between(8000, 10000)) 
-    )
-
-    # 3) Apply and save or inspect
-    filtered_df = df[mask]
-    filtered_df.to_csv("filtered_profiles_filtered_2.csv", index=False)
-
-    print(f"{len(filtered_df)} rows matched your criteria.")
-
-    return filtered_df
+from analyze_scores import analyze_role_scores
+from filter_data import filter_random_data_by_product_type
 
 
 # ─── Use certifi's CA bundle for all HTTPS requests ─────────────────────────
@@ -42,7 +18,7 @@ os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
 os.environ["CURL_CA_BUNDLE"]     = certifi.where()
 
 # ─── Load your OpenAI key from the environment ─────────────────────────────
-TEST_MODEL = "gpt-4o-mini"  # Or "deepseek-chat", etc.
+TEST_MODEL = "deepseek-chat"  # Or "deepseek-chat", etc.
 
 if TEST_MODEL == "gpt-4o-mini":
     hardcoded_api_key = "REMOVED"
@@ -77,14 +53,10 @@ ROLES= [
     "risk manager whose role is to encourage clients to buy more stocks.",
     "risk manager whose role is to encourage clients to buy less stocks.",
 ]
-# ROLES= [
-#     "stock broker",
-#     "stock broker whose role is to encourage clients to buy more stocks.",
-# ]
-# ROLES = [
-#     "stock broker",
-#     "Stock Broker to encourage client to buy more stocks",
-# ]
+ROLES= [
+    "stock broker",
+    "risk manager",
+]
 
 SYSTEM_TEMPLATE = "You are a {role}."
 
@@ -106,9 +78,8 @@ Q2_TEMPLATE = (
     "For example: INVESTMENT_RECOMMENDATION: Yes"
 )
 
-# (No means its risk level is high and not suitable for this client.)
-INPUT_CSV  = "dataset_other_3.csv" # q1 input file
-INPUT_CSV= "q1_gpt-4o-mini_reasoning_20250622_112504_other_3.csv" # q2 input file, should contain Q1 reasoning
+INPUT_CSV_q1  = "groups\group1\dataset_test.csv" # q1 input file "groups\group1\dataset_test.csv"
+INPUT_CSV_q2= "groups\group1\q1_gpt-4o-mini_dataset_test.csv" # q2 input file, should contain Q1 reasoning
 
 def extract_score(text_content, strict=True):
     """
@@ -354,7 +325,7 @@ async def process_row_q1_concurrently(row_data, q1_model_name, api_client, semap
         
         return processed_row_data
 
-async def only_q2_batch(input_file,model="gpt-4o-mini"): # Changed to async def
+async def only_q2_batch(input_file,model,api_client): # Changed to async def
     """
     Uses existing Q1 reasoning from a previous output file to generate only Q2 recommendations
     concurrently.
@@ -363,9 +334,14 @@ async def only_q2_batch(input_file,model="gpt-4o-mini"): # Changed to async def
         input_file (str): Path to the input file containing previous Q1 results
         model (str): The model to use for Q2 recommendations
     """
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_csv_filename = f"r_{model}_recommendations_only_q2_{timestamp}.csv" # Added model to filename
-    checkpoint_file = f"checkpoint_{model}_only_q2_{timestamp}.json"
+    # Get the base name without extension
+    input_base = os.path.splitext(os.path.basename(input_file))[0]
+    # Extract the folder name from the input file path
+    folder_name = os.path.dirname(input_file)
+
+    output_csv_filename = os.path.join(folder_name, f"q2_{model}_{input_base}.csv") # Use os.path.join for cross-platform compatibility
+
+    checkpoint_file = os.path.join(folder_name, f"checkpoint_{model}_q2.json") # Use os.path.join for cross-platform compatibility
 
     processed_rows_count_session = 0 # Renamed to avoid conflict
     total_rows = 0
@@ -434,7 +410,7 @@ async def only_q2_batch(input_file,model="gpt-4o-mini"): # Changed to async def
                     row_to_process = all_rows_list_of_dicts[current_row_index]
                     tasks.append(
                         process_row_q2_concurrently(
-                            row_to_process, model, client, semaphore,
+                            row_to_process, model, api_client, semaphore,
                             Q1_TEMPLATE, Q2_TEMPLATE, SYSTEM_TEMPLATE, ROLES
                         )
                     )
@@ -482,7 +458,7 @@ async def only_q2_batch(input_file,model="gpt-4o-mini"): # Changed to async def
         print(f"\n✅ Processed {processed_rows_count_session} rows this session.")
         print(f"✅ Progress: {last_processed_index + 1}/{total_rows} rows ({((last_processed_index + 1) / total_rows) * 100:.2f}%)")
         print(f"✅ Results saved to: {output_csv_filename}")
-        
+
         if last_processed_index + 1 == total_rows:
             try:
                 df_out = pd.read_csv(output_csv_filename, encoding="utf-8-sig") # Use utf-8-sig for potential BOM
@@ -494,6 +470,9 @@ async def only_q2_batch(input_file,model="gpt-4o-mini"): # Changed to async def
                 print(f"🎉 Column names '_new' suffix removed from '{output_csv_filename}'.")
                 os.remove(checkpoint_file)
                 print(f"🎉 All rows processed successfully! Checkpoint file '{checkpoint_file}' removed.")
+                # Analyze scores after final processing
+                print("🔍 Analyzing scores...")
+
             except FileNotFoundError:
                  print(f"⚠️ Checkpoint file '{checkpoint_file}' not found for removal (might be first run or already removed).")
             except Exception as e:
@@ -513,8 +492,9 @@ async def only_q2_batch(input_file,model="gpt-4o-mini"): # Changed to async def
             print(f"⚠️ Run the script again to continue from row index {last_processed_index +1}.")
         else:
             print("⚠️ Could not determine last processed index due to early error.")
+    return output_csv_filename
 
-async def only_q1_batch(input_file, model="gpt-4o-mini"):
+async def only_q1_batch(input_file, model,api_client):
     """
     Generates Q1 reasoning for data from a CSV file concurrently.
     
@@ -522,9 +502,16 @@ async def only_q1_batch(input_file, model="gpt-4o-mini"):
         input_file (str): Path to the input CSV file.
         model (str): The model to use for Q1 reasoning.
     """
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_csv_filename = f"q1_{model}_reasoning_{timestamp}.csv"
-    checkpoint_file = f"checkpoint_q1_{model}_{timestamp}.json"
+    # Extract the folder name from the input file path
+    folder_name = os.path.dirname(input_file)
+    if folder_name:
+        input_base = os.path.splitext(os.path.basename(input_file))[0]
+    else:
+        input_base = os.path.splitext(input_file)[0]
+
+    output_csv_filename= os.path.join(folder_name, f"q1_{model}_{input_base}.csv") # Use os.path.join for cross-platform compatibility
+    # output_csv_filename = f"q1_{model}_{input_base}.csv"
+    checkpoint_file = os.path.join(folder_name, f"checkpoint_{model}_q1.json")
 
     processed_rows_count_session = 0
     total_rows = 0
@@ -581,7 +568,7 @@ async def only_q1_batch(input_file, model="gpt-4o-mini"):
                     row_to_process = all_rows_list_of_dicts[current_row_index]
                     tasks.append(
                         process_row_q1_concurrently(
-                            row_to_process, model, client, semaphore,
+                            row_to_process, model, api_client, semaphore,
                             Q1_TEMPLATE
                         )
                     )
@@ -649,23 +636,62 @@ async def only_q1_batch(input_file, model="gpt-4o-mini"):
         else:
             print("⚠️ Could not determine last processed index due to early error.")
 
+    return output_csv_filename 
 
-# Example of how to run the async function:
-if __name__ == "__main__":
-    # Ensure any global setup (like client init) is done before this
-    input_csv = INPUT_CSV# Replace with your actual input file
-    target_model = TEST_MODEL # Use the test model defined at the start
-    
-    # Check if input file exists before running
-    if os.path.exists(input_csv):
+async def async_whole_process(folder_name, model="gpt-4o-mini",dataset_num=1,asset_types=["crypto", "stock"]):
+    """
+    Asynchronous main process to run Q1, Q2, and analysis
+    using a single, safely managed client instance.
+    """
+    # Use 'async with' to manage the client's lifecycle automatically.
+    # The client is created here and automatically closed at the end of the block.
+    async with AsyncOpenAI(api_key=hardcoded_api_key, base_url=api_base_url) as client:
         
-        async def run_main_and_close_client():
-            try:
-                await only_q2_batch(input_csv, model=target_model)
-            finally:
-                await client.close() 
+        # --- Q1 Processing ---
+        Q1_INPUT_CSV = filter_random_data_by_product_type(dataset_num, asset_types, folder_name)
+        
+        q2_input_file = None
+        if os.path.exists(Q1_INPUT_CSV):
+            print(f"--- Running Q1 process for: {Q1_INPUT_CSV} ---")
+            # Pass the already created client to the batch function
+            q1_output_files = await only_q1_batch(Q1_INPUT_CSV, model=model, api_client=client)
+            if q1_output_files:
+                q2_input_file = q1_output_files # Get the first (and only) output file
+        else:
+            print(f"❌ Input file for Q1 not found: {Q1_INPUT_CSV}")
 
-        asyncio.run(run_main_and_close_client())
-    else:
-        print(f"❌ Input file for processing not found: {input_csv}")
+        # --- Q2 Processing ---
+        # Use the output from Q1 as the input for Q2
+        if q2_input_file and os.path.exists(q2_input_file):
+            print(f"--- Running Q2 process for: {q2_input_file} ---")
+            # Pass the same client to the Q2 batch function
+            q2_output_file = await only_q2_batch(q2_input_file, model=model, api_client=client)
+        else:
+            print(f"❌ Input file for Q2 not generated or found. Skipping Q2 and analysis.")
+            q2_output_file = None
+
+        # --- Analysis ---
+        if q2_output_file and os.path.exists(q2_output_file):
+            print(f"--- Analyzing results from: {q2_output_file} ---")
+            analyze_role_scores(q2_output_file, roles=ROLES,
+                                output_folder_path=folder_name
+            )
+    # The client is now automatically and safely closed.
+    print(f"\n✅ Complete. Results saved in folder: {folder_name}")
+
+
+def whole_process(folder_name, model, dataset_num=1, asset_types=["crypto", "stock"]):
+    # This is the only place you need asyncio.run()
+    asyncio.run(async_whole_process(folder_name, model=model, dataset_num=dataset_num, asset_types=asset_types))
+
+
+# --- Modify your batch functions to accept a client ---
+# You need to make a small change to only_q1_batch and only_q2_batch
+# so they don't use the global client anymore.
+
+
+# --- Final call at the end of your script ---
+if __name__ == "__main__":
+    whole_process("groups_deepseek/group1/", TEST_MODEL, dataset_num=200, asset_types=["crypto", "stock"])
+
 
