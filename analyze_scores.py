@@ -802,4 +802,4 @@ def generate_recommendation_counts(df, roles, base_filename, output_folder):
         traceback.print_exc()
 # # 
 # csv_file="r_gpt-4o-mini_recommendations_only_q2_20250615_161212_combine.csv"  # Replace with your actual CSV file path
-# analyze_role_scores(csv_file="result/r_gpt-4o-mini_recommendations_only_q2_20250615_161212.csv", roles=ROLES, output_folder_path="result/")  # Replace with your actual CSV file path and output folder
+analyze_role_scores(csv_file="full coverage/q2_deepseek-chat_q1_deepseek-chat_dataset_google_full_200.csv", roles=ROLES, output_folder_path="full coverage/all roles")  # Replace with your actual CSV file path and output folder

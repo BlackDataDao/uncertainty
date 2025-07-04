@@ -53,10 +53,10 @@ ROLES= [
     "risk manager whose role is to encourage clients to buy more stocks.",
     "risk manager whose role is to encourage clients to buy less stocks.",
 ]
-ROLES= [
-    "stock broker",
-    "risk manager",
-]
+# ROLES= [
+#     "stock broker",
+#     "risk manager",
+# ]
 
 SYSTEM_TEMPLATE = "You are a {role}."
 
@@ -648,7 +648,8 @@ async def async_whole_process(folder_name, model="gpt-4o-mini",dataset_num=1,ass
     async with AsyncOpenAI(api_key=hardcoded_api_key, base_url=api_base_url) as client:
         
         # --- Q1 Processing ---
-        Q1_INPUT_CSV = filter_random_data_by_product_type(dataset_num, asset_types, folder_name)
+        # Q1_INPUT_CSV = filter_random_data_by_product_type(dataset_num, asset_types, folder_name)
+        Q1_INPUT_CSV="full coverage\dataset_google_full_200.csv" 
         
         q2_input_file = None
         if os.path.exists(Q1_INPUT_CSV):
@@ -692,6 +693,6 @@ def whole_process(folder_name, model, dataset_num=1, asset_types=["crypto", "sto
 
 # --- Final call at the end of your script ---
 if __name__ == "__main__":
-    whole_process("groups_deepseek/group1/", TEST_MODEL, dataset_num=200, asset_types=["crypto", "stock"])
+    whole_process("full coverage/", TEST_MODEL, dataset_num=200, asset_types=["crypto", "stock"])
 
 
