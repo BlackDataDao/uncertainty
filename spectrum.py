@@ -36,13 +36,11 @@ os.environ["CURL_CA_BUNDLE"]     = certifi.where()
 TEST_MODEL = "deepseek-chat"  # Or "deepseek-chat", etc.
 
 if TEST_MODEL == "gpt-4o-mini":
-    hardcoded_api_key = "REMOVED"
     hardcoded_api_key=os.getenv("gpt-4o-mini-apikey")
     if not hardcoded_api_key:
         raise ValueError("Please set the environment variable 'gpt-4o-mini-apikey' with your API key.")
     api_base_url = "https://api1.oaipro.com/v1"
 elif TEST_MODEL == "deepseek-chat":
-    hardcoded_api_key="REMOVED"
     hardcoded_api_key=os.getenv("deepseek-chat-apikey")
     if not hardcoded_api_key:
         raise ValueError("Please set the environment variable 'deepseek-chat-apikey' with your API key.")
