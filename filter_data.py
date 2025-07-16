@@ -1,3 +1,25 @@
+"""
+Module: filter_data.py
+
+Provides utility functions to filter and sample the synthetic investment dataset (SIDD.csv).
+
+Functions:
+  - filter_data_by_input():
+      Filters the dataset by predefined criteria (age, product_type, product_name,
+      percentage, net_cash), saves the result to "filtered_profiles_filtered_2.csv",
+      and returns the filtered DataFrame.
+  - filter_random_data_by_product_type(n, product_types, output_folder):
+      Filters by given product types and other criteria, selects n random rows,
+      saves them to a timestamped CSV in the specified folder, and returns the file path.
+
+Dependencies:
+  pandas, random
+
+Usage:
+    from filter_data import filter_data_by_input, filter_random_data_by_product_type
+    df = filter_data_by_input()
+    random_file = filter_random_data_by_product_type(5, ["crypto", "stock"], "groups/group1/")
+"""
 import pandas as pd
 import random
 

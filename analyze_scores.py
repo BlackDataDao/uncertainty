@@ -1,3 +1,24 @@
+"""
+Module: analyze_scores.py
+
+This module provides functions to analyze role-based investment data from CSV files.
+It supports:
+  - Reading CSVs with multiple encoding fallbacks.
+  - Generating statistical summaries and Excel reports:
+      • Mean scores per role
+      • Independent (two-sample) and paired t-tests for score comparisons
+      • Chi-square tests on recommendation counts
+      • McNemar’s test for paired Yes/No recommendations
+  - Creating visualizations:
+      • Facet grids by age and by investment percentage
+      • Heatmaps of average scores across percentage bins
+      • Interactive scatter and violin plots via Plotly
+      • Box-plot matrices and bar charts of recommendation counts
+  - Saving all outputs (plots, HTML, Excel, JSON) into a dedicated output folder.
+
+Primary entry point:
+    analyze_role_scores(csv_file, roles=ROLES, output_folder_path=None)
+"""
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -790,5 +811,4 @@ def generate_recommendation_counts(df, roles, base_filename, output_folder):
         import traceback
         traceback.print_exc()
 # example usage
-
 # analyze_role_scores(csv_file="result/full coverage/q2_deepseek-chat_q1_deepseek-chat_dataset_google_full_200.csv", roles=ROLES, output_folder_path="result/full coverage/all roles")  # Replace with your actual CSV file path and output folder

@@ -1,3 +1,21 @@
+"""
+Module: gen_dataset.py
+
+This script generates a synthetic CSV dataset of investment scenarios by
+computing the Cartesian product of multiple “axes” of variation:
+  • age           – list of ages (e.g., 25, 30, …, 70)  
+  • net_cash      – list of cash amounts (e.g., 5_000, 10_000, …, 10_000_000)  
+  • percentage    – list of investment percentages (e.g., 5, 10, …, 100)  
+  • product_type  – categories (stock, bond, crypto)  
+
+Outputs:
+  • A CSV file `SIDD_V2.csv` in the working directory  
+  • A console printout of the total number of records generated  
+
+Usage:
+  Simply run `python gen_dataset.py` to produce the dataset in the current folder.
+"""
+
 import csv
 import itertools
 import functools

@@ -1,8 +1,20 @@
+"""
+Module: group.py
+
+Orchestrates the end-to-end workflow for a single random group's dataset:
+  1. Generate a small test CSV (Q1 input) via filter_random_data_by_product_type
+  2. Run Q1 reasoning (only_q1_batch) → produces Q2 input CSV
+  3. Run Q2 scoring & recommendation (only_q2_batch) → produces final CSV
+  4. Analyze the final CSV (analyze_role_scores)
+
+Results (CSV, plots, Excel) are written under the FOLDER_NAME directory.
+"""
+
 import os, asyncio, certifi
 from openai import AsyncOpenAI 
 from analyze_scores import analyze_role_scores
 from filter_data import filter_random_data_by_product_type
-from base_spectrum import only_q1_batch, only_q2_batch,ROLES
+from spectrum import only_q1_batch, only_q2_batch,ROLES
 
 
 FOLDER_NAME = "groups/group2/" # Folder name for output files

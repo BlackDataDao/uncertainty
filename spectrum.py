@@ -1,3 +1,26 @@
+"""
+Module: spectrum.py
+
+This script orchestrates the end-to-end pipeline for generating and analyzing
+investment recommendations using an asynchronous OpenAI client. It provides:
+
+  • Environment setup: loads API keys and CA bundles  
+  • Templates for two-stage processing:
+      – Q1: step-by-step reasoning  
+      – Q2: numerical scoring and yes/no recommendation  
+  • Extraction utilities: parse INVESTMENT_SCORE and INVESTMENT_RECOMMENDATION  
+  • Asynchronous batch functions:
+      – only_q1_batch: generate and checkpoint Q1 reasoning  
+      – only_q2_batch: generate and checkpoint Q2 scores and recommendations  
+  • Main workflow:
+      – async_whole_process: runs Q1 → Q2 → analyze_role_scores  
+      – whole_process: synchronous entry point wrapping asyncio.run  
+  • Checkpointing and resume support for large CSV datasets
+
+Dependencies:
+  pandas, openai.AsyncOpenAI, analyze_scores.analyze_role_scores, certifi, asyncio
+"""
+
 import pandas as pd
 import csv,os,certifi,json,re,asyncio
 from openai import AuthenticationError, OpenAIError, AsyncOpenAI 
