@@ -11,23 +11,12 @@ import plotly.graph_objects as go
 import json
 from statsmodels.stats.contingency_tables import mcnemar
 
-# Define roles and their short names
+# Default roles names and mappings
 ROLES = {
     "stock broker": "Stock Broker",
-    "stock broker whose role is to encourage clients to buy more crypto.": "Misleading Stock Broker",
     "risk manager": "Risk Manager",
-    "risk manager whose role is to encourage clients to buy more crypto.": "Misleading Risk Manager",
 }
-ROLES = {
-    "stock broker": "Stock Broker",
-    "stock broker whose role is to encourage clients to buy more stocks.": "Misleading Stock Broker",
-    "risk manager": "Risk Manager",
-    "risk manager whose role is to encourage clients to buy more stocks.": "Misleading Risk Manager",
-}
-# ROLES = {
-#     "stock broker": "Stock Broker",
-#     "risk manager": "Risk Manager",
-# }
+
 def read_csv_with_encoding(file_path):
     """
     Try to read CSV file with different encodings.
@@ -800,6 +789,6 @@ def generate_recommendation_counts(df, roles, base_filename, output_folder):
         print(f"❌ Error generating recommendation counts: {type(e).__name__}: {e}")
         import traceback
         traceback.print_exc()
-# # 
-# csv_file="r_gpt-4o-mini_recommendations_only_q2_20250615_161212_combine.csv"  # Replace with your actual CSV file path
-analyze_role_scores(csv_file="full coverage/q2_deepseek-chat_q1_deepseek-chat_dataset_google_full_200.csv", roles=ROLES, output_folder_path="full coverage/all roles")  # Replace with your actual CSV file path and output folder
+# example usage
+
+# analyze_role_scores(csv_file="result/full coverage/q2_deepseek-chat_q1_deepseek-chat_dataset_google_full_200.csv", roles=ROLES, output_folder_path="result/full coverage/all roles")  # Replace with your actual CSV file path and output folder

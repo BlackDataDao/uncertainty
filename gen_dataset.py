@@ -20,7 +20,7 @@ product_type_to_names = {
 
 # 2) Prepare CSV output
 
-output_file = "generated_profiles_3.csv"
+output_file = "SIDD_V2.csv"
 fieldnames = list(params.keys()) + ["product_name"]  # Add product_name to fieldnames
 
 with open(output_file, "w", newline="", encoding="utf-8") as f:

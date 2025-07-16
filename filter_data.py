@@ -70,5 +70,5 @@ def filter_random_data_by_product_type(n, product_types,output_folder):
     return output_file
 
 # Example usage
-# filter_random_data_by_product_type(200, ["crypto", "stock"], "groups/group3/")  # Adjust the number of rows and product types as needed
+# filter_random_data_by_product_type(200, ["crypto", "stock"], "groups/group3/")
 
